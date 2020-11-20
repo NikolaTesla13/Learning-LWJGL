@@ -1,21 +1,30 @@
+package com.github.nikolatesla13;
+
 import org.lwjgl.*;
 import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.*;
+import org.lwjgl.system.*;
+
+import java.nio.*;
 
 import static org.lwjgl.glfw.Callbacks.*;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
- import static org.lwjgl.system.MemoryUtil.*;
+import static org.lwjgl.opengl.GL15.*;
+import static org.lwjgl.opengl.GL30.*;
+import static org.lwjgl.system.MemoryStack.*;
+import static org.lwjgl.system.MemoryUtil.*;
 
 public class Main {
 
-    public long window;
+    private long window;
+    private int VAO, VBO, IBO;
 
-    public void run(Game game) {
+    public void run() {
+        System.out.println("Hello LWJGL " + Version.getVersion() + "!");
 
-        init(game);
-        loop(game);
-        game.end();
+        init();
+        loop();
 
         glfwFreeCallbacks(window);
         glfwDestroyWindow(window);
@@ -24,23 +33,17 @@ public class Main {
         glfwSetErrorCallback(null).free();
     }
 
-    private void init(Game game) {
+    private void init() {
         GLFWErrorCallback.createPrint(System.err).set();
 
         if ( !glfwInit() )
             throw new IllegalStateException("Unable to initialize GLFW");
 
         glfwDefaultWindowHints();
-
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
-
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-        window = glfwCreateWindow(500, 600, "Hello World!", NULL, NULL);
+        window = glfwCreateWindow(1080, 720, "Hello World!", NULL, NULL);
         if ( window == NULL )
             throw new RuntimeException("Failed to create the GLFW window");
 
@@ -53,32 +56,63 @@ public class Main {
         glfwSwapInterval(1);
 
         glfwShowWindow(window);
-
         GL.createCapabilities();
 
-        game.start();
+
+        float vertices[] = {
+                0.5f,  0.5f, 0.0f,
+                0.5f, -0.5f, 0.0f,
+                -0.5f, -0.5f, 0.0f,
+                -0.5f,  0.5f, 0.0f
+        };
+        FloatBuffer verticesBuffer = MemoryUtil.memAllocFloat(vertices.length);
+        verticesBuffer.put(vertices).flip();
+
+        int indices[] = {
+                0, 1, 3,
+                1, 2, 3
+        };
+        IntBuffer indicesBuffer = MemoryUtil.memAllocInt(indices.length);
+        indicesBuffer.put(indices).flip();
+
+        VAO = glGenVertexArrays();
+        glBindVertexArray(VAO);
+
+        VBO = glGenBuffers();
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, verticesBuffer, GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        IBO = glGenBuffers();
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesBuffer, GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     }
 
-    private void loop(Game game) {
+    private void loop() {
 
-        glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+        glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
 
         while ( !glfwWindowShouldClose(window) ) {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+            glfwPollEvents();
+
+            glBindVertexArray(VAO);
+            glEnableVertexAttribArray(0);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+            glDisableVertexAttribArray(0);
+            glBindVertexArray(0);
+
             glfwSwapBuffers(window);
 
-            game.update();
-            System.out.println("new frame!");
-
-            glfwPollEvents();
         }
     }
 
     public static void main(String[] args) {
-        Main main = new Main();
-        Game game = new Game();
-        main.run(game);
+        new Main().run();
     }
-
 }
